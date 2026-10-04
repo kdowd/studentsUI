@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Students &middot; Supabase</title>
+<style>
+  :root {
+    --bg: #f5f6f8;
+    --surface: #ffffff;
+    --border: #e4e7ec;
+    --border-strong: #d0d5dd;
+    --text: #101828;
+    --text-muted: #667085;
+    --accent: #2563eb;
+    --accent-hover: #1d4ed8;
+    --danger-bg: #fef3f2;
+    --danger-border: #fda29b;
+    --danger-text: #b42318;
+    --success-bg: #ecfdf3;
+    --success-border: #a6f4c5;
+    --success-text: #027a48;
+    --radius: 12px;
+    --shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 1px 3px rgba(16, 24, 40, .1);
+  }
+
+  * { box-sizing: border-box; }
+
+  html { -webkit-text-size-adjust: 100%; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+                 "Helvetica Neue", Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+
+  .wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 32px 20px 72px;
+  }
+
+  /* ---------- header ---------- */
+  .page-head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .page-head h1 {
+    margin: 0 0 4px;
+    font-size: 26px;
+    font-weight: 650;
+    letter-spacing: -.02em;
+  }
+  .page-head p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 13.5px;
+  }
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: .92em;
+    background: #eef1f5;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 1px 5px;
+  }
+
+  /* ---------- cards ---------- */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .card + .card { margin-top: 24px; }
+
+  .card-head {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .card-head h2 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 620;
+  }
+  .card-head .hint {
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+  .card-body { padding: 20px; }
+
+  /* ---------- buttons ---------- */
+  button {
+    font: inherit;
+    cursor: pointer;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    transition: background-color .15s, border-color .15s, color .15s;
+  }
+  button:disabled { cursor: not-allowed; opacity: .6; }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+    padding: 10px 18px;
+    font-weight: 560;
+  }
+  .btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+
+  .btn-secondary {
+    background: var(--surface);
+    color: var(--text);
+    border-color: var(--border-strong);
+    padding: 7px 14px;
+    font-size: 13.5px;
+    font-weight: 520;
+  }
+  .btn-secondary:hover:not(:disabled) { background: #f9fafb; }
+
+  /* ---------- table ---------- */
+  .table-scroll { overflow-x: auto; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  caption { text-align: left; }
+
+  th, td {
+    padding: 11px 20px;
+    text-align: left;
+    white-space: nowrap;
+  }
+  thead th {
+    background: #fafbfc;
+    border-bottom: 1px solid var(--border);
+    font-size: 11.5px;
+    font-weight: 620;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--text-muted);
+  }
+  tbody td { border-bottom: 1px solid #f1f3f6; }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr:hover { background: #fafbfc; }
+
+  td.is-null { color: #98a2b3; }
+  td.num { font-variant-numeric: tabular-nums; }
+
+  .chip {
+    display: inline-block;
+    background: #eef2ff;
+    color: #3538cd;
+    border: 1px solid #e0e7ff;
+    border-radius: 6px;
+    padding: 1px 7px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12.5px;
+    font-weight: 600;
+  }
+  .country-name { color: var(--text); }
+  .country-name.unknown { color: var(--text-muted); font-style: italic; }
+
+  /* ---------- form ---------- */
+  .field-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+  }
+  .field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .field label {
+    font-size: 13px;
+    font-weight: 560;
+    color: #344054;
+  }
+  .field .req { color: var(--danger-text); margin-left: 2px; }
+  .field .help { font-size: 12px; color: var(--text-muted); }
+
+  input[type="text"], input[type="number"], select {
+    font: inherit;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    padding: 9px 11px;
+    width: 100%;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  input:focus, select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, .15);
+  }
+  input.invalid, select.invalid {
+    border-color: var(--danger-border);
+    box-shadow: 0 0 0 3px rgba(180, 35, 24, .12);
+  }
+  select:disabled { background: #f9fafb; color: var(--text-muted); }
+
+  .form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    margin-top: 20px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border);
+  }
+
+  /* ---------- messages ---------- */
+  .msg {
+    border-radius: 9px;
+    padding: 11px 14px;
+    font-size: 13.5px;
+    border: 1px solid transparent;
+    margin-bottom: 16px;
+  }
+  .msg[hidden] { display: none; }
+  .msg-error { background: var(--danger-bg); border-color: var(--danger-border); color: var(--danger-text); }
+  .msg-success { background: var(--success-bg); border-color: var(--success-border); color: var(--success-text); }
+  .msg strong { font-weight: 620; }
+
+  .state {
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 14px;
+  }
+
+  @media (max-width: 760px) {
+    .field-grid { grid-template-columns: 1fr; }
+    .wrap { padding: 22px 14px 56px; }
+    th, td { padding: 10px 14px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="page-head">
+    <div>
+      <h1>Students</h1>
+      <p>
+        Reading <code>public.users</code> joined to <code>public.all_countries</code>
+        via <code>country_of_birth &rarr; code</code>.
+      </p>
+    </div>
+    <button type="button" id="refresh-btn" class="btn-secondary">Refresh</button>
+  </div>
+
+  <!-- ============ users table ============ -->
+  <section class="card">
+    <div class="card-head">
+      <h2>All students</h2>
+      <span class="hint" id="count-hint"></span>
+    </div>
+
+    <div id="table-state" class="state">Loading students&hellip;</div>
+
+    <div class="table-scroll" id="table-wrap" hidden>
+      <table>
+        <caption class="visually-hidden" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);">
+          All rows from the users table
+        </caption>
+        <thead><tr id="users-head"></tr></thead>
+        <tbody id="users-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ add student ============ -->
+  <section class="card">
+    <div class="card-head">
+      <h2>Add a new student</h2>
+      <span class="hint">Inserts a row into <code>public.users</code></span>
+    </div>
+
+    <div class="card-body">
+      <div class="msg msg-error" id="form-error" role="alert" hidden></div>
+      <div class="msg msg-success" id="form-success" role="status" hidden></div>
+
+      <form id="student-form" novalidate>
+        <div class="field-grid">
+          <div class="field">
+            <label for="firstname">First name <span class="req" aria-hidden="true">*</span></label>
+            <input type="text" id="firstname" name="firstname" autocomplete="given-name"
+                   placeholder="e.g. Ayush" required />
+          </div>
+
+          <div class="field">
+            <label for="lastname">Last name</label>
+            <input type="text" id="lastname" name="lastname" autocomplete="family-name"
+                   placeholder="e.g. Kafle" />
+          </div>
+
+          <div class="field">
+            <label for="country">Country of birth</label>
+            <select id="country" name="country_of_birth">
+              <option value="">Loading countries&hellip;</option>
+            </select>
+            <span class="help">Foreign key to <code>all_countries.code</code></span>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn-primary" id="submit-btn">Add student</button>
+          <button type="reset" class="btn-secondary" id="reset-btn">Clear</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* =========================================================
+     CONFIGURATION — change these if your project/table changes
+     ========================================================= */
+  var CONFIG = {
+    SUPABASE_URL: 'https://pkpbzthkwskkudqogyrl.supabase.co',
+    SUPABASE_KEY: 'sb_publishable_MOHaPhKPaA_4Gb7ZMgxQgg_I4YNNk_w',
+
+    USERS_TABLE: 'users',
+    COUNTRIES_TABLE: 'all_countries',
+
+    // users.country_of_birth  ->  all_countries.code
+    FK_COLUMN: 'country_of_birth',
+    COUNTRY_CODE: 'code',
+    COUNTRY_NAME: 'name'
+  };
+
+  // Synthetic column that shows the resolved country name next to the code.
+  var COUNTRY_LABEL_COL = '__country_name';
+  // Preferred left-to-right column order; anything else found is appended.
+  var PREFERRED_ORDER = ['id', 'firstname', 'lastname', 'country_of_birth', 'created_at'];
+  var COLUMN_LABELS = {
+    id: 'ID',
+    firstname: 'First name',
+    lastname: 'Last name',
+    country_of_birth: 'Country code',
+    created_at: 'Created',
+    __country_name: 'Country'
+  };
+  // Columns whose values should be right-aligned / tabular.
+  var NUMERIC_COLS = ['id'];
+
+  /* =========================================================
+     Tiny DOM helpers
+     ========================================================= */
+  function $(id) { return document.getElementById(id); }
+
+  function show(el, on) { if (el) el.hidden = !on; }
+
+  function clearNode(node) {
+    while (node.firstChild) node.removeChild(node.firstChild);
+  }
+
+  /* =========================================================
+     REST helper — plain fetch, no supabase-js needed
+     ========================================================= */
+  function rest(path, init) {
+    init = init || {};
+    var headers = Object.assign({
+      'apikey': CONFIG.SUPABASE_KEY,
+      'Authorization': 'Bearer ' + CONFIG.SUPABASE_KEY,
+      'Content-Type': 'application/json'
+    }, init.headers || {});
+
+    return fetch(CONFIG.SUPABASE_URL + '/rest/v1/' + path, Object.assign({}, init, { headers: headers }))
+      .then(function (res) {
+        return res.text().then(function (text) {
+          var body = null;
+          if (text) { try { body = JSON.parse(text); } catch (e) { body = text; } }
+          if (!res.ok) {
+            var message = (body && typeof body === 'object' && body.message)
+              ? body.message
+              : ('Request failed with HTTP ' + res.status);
+            var err = new Error(message);
+            err.status = res.status;
+            err.body = body;
+            throw err;
+          }
+          return body;
+        });
+      });
+  }
+
+  /* =========================================================
+     Formatting
+     ========================================================= */
+  function labelFor(col) {
+    if (COLUMN_LABELS[col]) return COLUMN_LABELS[col];
+    return col.replace(/_/g, ' ').replace(/\b\w/g, function (c) { return c.toUpperCase(); });
+  }
+
+  function isBlank(v) { return v === null || v === undefined || v === ''; }
+
+  function prettyDate(iso) {
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return String(iso);
+    return d.toLocaleString(undefined, {
+      year: 'numeric', month: 'short', day: '2-digit',
+      hour: '2-digit', minute: '2-digit'
+    });
+  }
+
+  /* =========================================================
+     State
+     ========================================================= */
+  var state = {
+    users: [],
+    countries: [],          // raw rows from all_countries
+    countryByCode: {},      // code -> country row
+    embedded: false,        // did PostgREST resolve the FK for us?
+    columns: []
+  };
+
+  /* =========================================================
+     Data loading
+     ========================================================= */
+  function loadCountries() {
+    var q = CONFIG.COUNTRIES_TABLE + '?select=*&order=' + CONFIG.COUNTRY_NAME + '.asc';
+    return rest(q).then(function (rows) {
+      state.countries = rows || [];
+      state.countryByCode = {};
+      state.countries.forEach(function (c) {
+        state.countryByCode[c[CONFIG.COUNTRY_CODE]] = c;
+      });
+    });
+  }
+
+  // Try to let PostgREST resolve the FK relationship; if the embed is
+  // unavailable, fall back to fetching users plainly and joining in JS.
+  function loadUsers() {
+    var embed = CONFIG.COUNTRIES_TABLE + '(' + CONFIG.COUNTRY_CODE + ',' + CONFIG.COUNTRY_NAME + ')';
+    return rest(CONFIG.USERS_TABLE + '?select=*,' + embed + '&order=id.asc')
+      .then(function (rows) {
+        state.embedded = true;
+        state.users = rows || [];
+      })
+      .catch(function () {
+        return rest(CONFIG.USERS_TABLE + '?select=*&order=id.asc').then(function (rows) {
+          state.embedded = false;
+          state.users = rows || [];
+        });
+      });
+  }
+
+  function countryNameFor(row) {
+    // 1) embedded relation
+    var rel = row[CONFIG.COUNTRIES_TABLE];
+    if (rel && typeof rel === 'object' && !Array.isArray(rel) && rel[CONFIG.COUNTRY_NAME]) {
+      return rel[CONFIG.COUNTRY_NAME];
+    }
+    // 2) client-side join
+    var match = state.countryByCode[row[CONFIG.FK_COLUMN]];
+    return match ? match[CONFIG.COUNTRY_NAME] : null;
+  }
+
+  /* =========================================================
+     Rendering — the table
+     ========================================================= */
+  function deriveColumns(rows) {
+    var cols = [];
+    function add(col) { if (cols.indexOf(col) === -1) cols.push(col); }
+
+    rows.forEach(function (row) {
+      Object.keys(row).forEach(function (key) {
+        if (key === CONFIG.COUNTRIES_TABLE) return;         // relation, handled separately
+        var v = row[key];
+        var isObject = v !== null && typeof v === 'object';
+        if (!isObject) add(key);
+      });
+    });
+
+    if (cols.length === 0) PREFERRED_ORDER.forEach(add);
+
+    cols.sort(function (a, b) {
+      var ia = PREFERRED_ORDER.indexOf(a); ia = ia === -1 ? 999 : ia;
+      var ib = PREFERRED_ORDER.indexOf(b); ib = ib === -1 ? 999 : ib;
+      return ia - ib;
+    });
+
+    // Slot the resolved country name right after the FK code column.
+    var fkIdx = cols.indexOf(CONFIG.FK_COLUMN);
+    if (fkIdx !== -1) cols.splice(fkIdx + 1, 0, COUNTRY_LABEL_COL);
+
+    return cols;
+  }
+
+  function renderHead(columns) {
+    var tr = $('users-head');
+    clearNode(tr);
+    columns.forEach(function (col) {
+      var th = document.createElement('th');
+      th.scope = 'col';
+      th.textContent = labelFor(col);
+      tr.appendChild(th);
+    });
+  }
+
+  function renderBody(columns) {
+    var tbody = $('users-body');
+    clearNode(tbody);
+
+    state.users.forEach(function (row) {
+      var tr = document.createElement('tr');
+
+      columns.forEach(function (col) {
+        var td = document.createElement('td');
+
+        if (col === COUNTRY_LABEL_COL) {
+          var name = countryNameFor(row);
+          td.textContent = name || 'Unknown';
+          td.className = 'country-name' + (name ? '' : ' unknown');
+          tr.appendChild(td);
+          return;
+        }
+
+        var value = row[col];
+
+        if (isBlank(value)) {
+          td.textContent = '—';
+          td.className = 'is-null';
+        } else if (col === 'created_at') {
+          td.textContent = prettyDate(value);
+        } else if (col === CONFIG.FK_COLUMN) {
+          var chip = document.createElement('span');
+          chip.className = 'chip';
+          chip.textContent = String(value);
+          td.appendChild(chip);
+        } else if (typeof value === 'boolean') {
+          td.textContent = value ? 'Yes' : 'No';
+        } else {
+          td.textContent = String(value);
+          if (NUMERIC_COLS.indexOf(col) !== -1) td.classList.add('num');
+        }
+
+        tr.appendChild(td);
+      });
+
+      tbody.appendChild(tr);
+    });
+  }
+
+  function renderTable() {
+    var stateEl = $('table-state');
+    var wrapEl = $('table-wrap');
+    var hintEl = $('count-hint');
+
+    if (!state.users.length) {
+      stateEl.textContent = 'No students found in public.users.';
+      show(stateEl, true);
+      show(wrapEl, false);
+      hintEl.textContent = '';
+      return;
+    }
+
+    state.columns = deriveColumns(state.users);
+    renderHead(state.columns);
+    renderBody(state.columns);
+
+    stateEl.textContent = '';
+    show(stateEl, false);
+    show(wrapEl, true);
+    hintEl.textContent = state.users.length + (state.users.length === 1 ? ' student' : ' students');
+  }
+
+  function renderCountryOptions() {
+    var select = $('country');
+    clearNode(select);
+
+    var placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = state.countries.length
+      ? '— Select a country —'
+      : '— No countries available —';
+    select.appendChild(placeholder);
+
+    state.countries.forEach(function (c) {
+      var opt = document.createElement('option');
+      opt.value = c[CONFIG.COUNTRY_CODE];
+      opt.textContent = c[CONFIG.COUNTRY_NAME] + ' (' + c[CONFIG.COUNTRY_CODE] + ')';
+      select.appendChild(opt);
+    });
+  }
+
+  /* =========================================================
+     Messages
+     ========================================================= */
+  function clearMessages() {
+    show($('form-error'), false);
+    show($('form-success'), false);
+  }
+
+  function showError(html) {
+    var el = $('form-error');
+    clearNode(el);
+    html.forEach(function (part) {
+      if (typeof part === 'string') {
+        el.appendChild(document.createTextNode(part));
+      } else {
+        var strong = document.createElement('strong');
+        strong.textContent = part.strong;
+        el.appendChild(strong);
+      }
+    });
+    show(el, true);
+  }
+
+  function showSuccess(text) {
+    var el = $('form-success');
+    el.textContent = text;
+    show(el, true);
+  }
+
+  function markInvalid(inputId) {
+    var el = $(inputId);
+    if (!el) return;
+    el.classList.add('invalid');
+    el.focus();
+    el.addEventListener('input', function handler() {
+      el.classList.remove('invalid');
+      el.removeEventListener('input', handler);
+    });
+  }
+
+  /* =========================================================
+     Loading
+     ========================================================= */
+  function refresh() {
+    var stateEl = $('table-state');
+    stateEl.textContent = 'Loading students…';
+    show(stateEl, true);
+    show($('table-wrap'), false);
+
+    var refreshBtn = $('refresh-btn');
+    refreshBtn.disabled = true;
+
+    return Promise.all([loadCountries(), loadUsers()])
+      .then(function () {
+        renderCountryOptions();
+        renderTable();
+      })
+      .catch(function (err) {
+        stateEl.textContent = 'Could not load data: ' + err.message;
+        show(stateEl, true);
+        show($('table-wrap'), false);
+        $('count-hint').textContent = '';
+      })
+      .then(function () {
+        refreshBtn.disabled = false;
+      });
+  }
+
+  /* =========================================================
+     Submit
+     ========================================================= */
+  function handleSubmit(event) {
+    event.preventDefault();
+    clearMessages();
+
+    var firstnameEl = $('firstname');
+    var lastnameEl = $('lastname');
+    var countryEl = $('country');
+
+    var firstname = firstnameEl.value.trim();
+    var lastname = lastnameEl.value.trim();
+    var country = countryEl.value;
+
+    // Client-side validation
+    var problems = [];
+    if (!firstname) {
+      problems.push({ strong: 'First name ' }, 'is required.');
+      markInvalid('firstname');
+    }
+    if (problems.length) {
+      showError(problems);
+      return;
+    }
+
+    // Only send keys we actually have values for. Nullable columns accept
+    // null; NOT NULL columns will surface a clear database error instead.
+    var payload = { firstname: firstname };
+    payload.lastname = lastname || null;
+    payload[CONFIG.FK_COLUMN] = country || null;
+
+    var submitBtn = $('submit-btn');
+    var originalLabel = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Adding…';
+
+    rest(CONFIG.USERS_TABLE, {
+      method: 'POST',
+      headers: { 'Prefer': 'return=representation' },
+      body: JSON.stringify(payload)
+    })
+      .then(function (created) {
+        var row = Array.isArray(created) ? created[0] : created;
+        var who = [firstname, lastname].filter(Boolean).join(' ');
+        showSuccess('Added “' + who + '”' + (row && row.id != null ? ' (id ' + row.id + ')' : '') + '.');
+        resetForm(true);
+        return refresh();
+      })
+      .catch(function (err) {
+        describeInsertError(err, payload);
+      })
+      .then(function () {
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalLabel;
+      });
+  }
+
+  // Turn database errors into something a human can act on.
+  function describeInsertError(err, payload) {
+    var message = err.message || 'Unknown error';
+
+    // 23502: not-null violation -> point at the offending field
+    var notNull = /null value in column "([^"]+)"/.exec(message);
+    if (err.body && err.body.code === '23502' && notNull) {
+      var column = notNull[1];
+      var inputId = column === CONFIG.FK_COLUMN ? 'country' : column;
+      markInvalid(inputId);
+      showError([
+        { strong: labelFor(column) },
+        ' cannot be empty — the database rejected the insert (column “' + column + '” is NOT NULL).'
+      ]);
+      return;
+    }
+
+    // 23503: foreign key violation
+    if (err.body && err.body.code === '23503') {
+      markInvalid('country');
+      showError([
+        { strong: 'Country of birth ' },
+        'must be one of the codes in all_countries. The database rejected “' +
+          (payload[CONFIG.FK_COLUMN] || '') + '”.'
+      ]);
+      return;
+    }
+
+    showError([{ strong: 'Could not add student. ' }, message]);
+  }
+
+  /* =========================================================
+     Reset
+     ========================================================= */
+  function resetForm(keepFocus) {
+    $('student-form').reset();
+    ['firstname', 'lastname', 'country'].forEach(function (id) {
+      $(id).classList.remove('invalid');
+    });
+    if (keepFocus) $('firstname').focus();
+  }
+
+  /* =========================================================
+     Wiring
+     ========================================================= */
+  function init() {
+    $('student-form').addEventListener('submit', handleSubmit);
+    $('refresh-btn').addEventListener('click', function () {
+      clearMessages();
+      refresh();
+    });
+    $('reset-btn').addEventListener('click', function () {
+      clearMessages();
+      ['firstname', 'lastname', 'country'].forEach(function (id) {
+        $(id).classList.remove('invalid');
+      });
+    });
+    refresh();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+</body>
+</html>
