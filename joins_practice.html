@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Inner Joins Practice &middot; PostgreSQL</title>
+<style>
+  :root {
+    --bg: #f5f6f8;
+    --surface: #ffffff;
+    --border: #e4e7ec;
+    --border-strong: #d0d5dd;
+    --text: #101828;
+    --text-muted: #667085;
+    --accent: #2563eb;
+    --accent-hover: #1d4ed8;
+    --warmup: #b54708;
+    --warmup-bg: #fffaeb;
+    --warmup-border: #fedf89;
+    --single: #3538cd;
+    --single-bg: #eef4ff;
+    --single-border: #c7d7fe;
+    --multi: #027a48;
+    --multi-bg: #ecfdf3;
+    --multi-border: #a6f4c5;
+    --radius: 12px;
+    --shadow: 0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.1);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+                 "Helvetica Neue", Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.55;
+  }
+
+  .wrap { max-width: 980px; margin: 0 auto; padding: 34px 20px 80px; }
+
+  /* ---------- header ---------- */
+  header.page h1 {
+    margin: 0 0 6px;
+    font-size: 27px;
+    font-weight: 650;
+    letter-spacing: -.02em;
+  }
+  header.page p { margin: 0; color: var(--text-muted); font-size: 14px; }
+
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: .92em;
+    background: #eef1f5;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 1px 5px;
+  }
+
+  /* ---------- cards ---------- */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    margin-top: 22px;
+    overflow: hidden;
+  }
+  .card-pad { padding: 20px 22px; }
+
+  .card h2 {
+    margin: 0 0 12px;
+    font-size: 15px;
+    font-weight: 620;
+  }
+
+  /* ---------- schema diagram ---------- */
+  .schema {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 14px;
+    align-items: center;
+    margin-top: 6px;
+  }
+  .tbl {
+    border: 1px solid var(--border-strong);
+    border-radius: 9px;
+    overflow: hidden;
+    font-size: 13px;
+  }
+  .tbl-name {
+    background: #f9fafb;
+    border-bottom: 1px solid var(--border);
+    padding: 6px 10px;
+    font-weight: 620;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12.5px;
+  }
+  .tbl ul { margin: 0; padding: 7px 10px; list-style: none; }
+  .tbl li {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12.5px;
+    color: #475467;
+  }
+  .pk { color: #b54708; font-weight: 600; }
+  .fk { color: #3538cd; font-weight: 600; }
+  .rel {
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-muted);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    line-height: 1.9;
+  }
+  .rel .arrow { color: var(--single); font-weight: 700; }
+
+  /* ---------- data browser ---------- */
+  details.data > summary {
+    cursor: pointer;
+    padding: 14px 22px;
+    font-weight: 600;
+    font-size: 14px;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  details.data > summary::-webkit-details-marker { display: none; }
+  details.data > summary::before {
+    content: "▸";
+    color: var(--text-muted);
+    transition: transform .15s;
+    display: inline-block;
+  }
+  details.data[open] > summary::before { transform: rotate(90deg); }
+  details.data .body { padding: 0 22px 20px; }
+
+  .data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .data-grid .full { grid-column: 1 / -1; }
+  .data-grid h4 {
+    margin: 0 0 6px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--text-muted);
+  }
+
+  /* ---------- results tables ---------- */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  th, td {
+    text-align: left;
+    padding: 5px 10px;
+    border-bottom: 1px solid #f1f3f6;
+    white-space: nowrap;
+  }
+  thead th {
+    background: #fafbfc;
+    border-bottom: 1px solid var(--border);
+    font-size: 11.5px;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  tbody tr:last-child td { border-bottom: 0; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* ---------- toolbar ---------- */
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    margin-top: 22px;
+  }
+  .progress {
+    margin-left: auto;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  button {
+    font: inherit;
+    cursor: pointer;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    transition: background-color .15s, border-color .15s, color .15s;
+  }
+  .btn {
+    background: var(--surface);
+    color: var(--text);
+    border-color: var(--border-strong);
+    padding: 7px 14px;
+    font-size: 13.5px;
+    font-weight: 520;
+  }
+  .btn:hover { background: #f9fafb; }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+  /* ---------- questions ---------- */
+  .q { margin-top: 18px; }
+  .q-head {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    padding: 18px 22px 0;
+  }
+  .q-num {
+    flex: none;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: #eef2f6;
+    color: #344054;
+    font-weight: 650;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .q-head h3 { margin: 3px 0 6px; font-size: 16px; font-weight: 620; }
+  .q-body { padding: 0 22px 20px 66px; }
+  .q-text { margin: 0 0 14px; }
+
+  .badge {
+    display: inline-block;
+    font-size: 11.5px;
+    font-weight: 620;
+    padding: 2px 9px;
+    border-radius: 999px;
+    border: 1px solid;
+    letter-spacing: .02em;
+  }
+  .badge-warmup { color: var(--warmup); background: var(--warmup-bg); border-color: var(--warmup-border); }
+  .badge-single { color: var(--single); background: var(--single-bg); border-color: var(--single-border); }
+  .badge-multi  { color: var(--multi);  background: var(--multi-bg);  border-color: var(--multi-border); }
+
+  .q-actions { display: flex; flex-wrap: wrap; gap: 9px; }
+
+  .hint {
+    margin-top: 13px;
+    background: #fffaeb;
+    border: 1px solid var(--warmup-border);
+    border-radius: 9px;
+    padding: 10px 13px;
+    font-size: 13.5px;
+    color: #7a2e0e;
+  }
+  .hint[hidden] { display: none; }
+  .hint strong { color: #b54708; }
+
+  .answer { margin-top: 14px; }
+  .answer[hidden] { display: none; }
+
+  .sql-block { position: relative; }
+  pre {
+    margin: 0;
+    background: #0f172a;
+    color: #e2e8f0;
+    border-radius: 9px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  pre code { background: none; border: 0; padding: 0; color: inherit; font-size: inherit; }
+
+  .sql-kw   { color: #93c5fd; font-weight: 600; }
+  .sql-fn   { color: #c4b5fd; }
+  .sql-num  { color: #fdba74; }
+  .sql-str  { color: #86efac; }
+  .sql-punct{ color: #94a3b8; }
+
+  .copy-btn {
+    position: absolute;
+    top: 9px;
+    right: 9px;
+    background: rgba(255,255,255,.1);
+    border: 1px solid rgba(255,255,255,.2);
+    color: #cbd5e1;
+    font-size: 11.5px;
+    padding: 3px 9px;
+    border-radius: 6px;
+  }
+  .copy-btn:hover { background: rgba(255,255,255,.2); color: #fff; }
+
+  .result-label {
+    margin: 14px 0 6px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--text-muted);
+    font-weight: 600;
+  }
+  .result-box {
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    overflow-x: auto;
+  }
+
+  .note {
+    margin-top: 10px;
+    font-size: 13px;
+    color: #475467;
+    border-left: 3px solid var(--border-strong);
+    padding-left: 11px;
+  }
+  .note code { background: #f2f4f7; }
+
+  .callout {
+    background: var(--single-bg);
+    border: 1px solid var(--single-border);
+    border-radius: 9px;
+    padding: 13px 16px;
+    font-size: 13.5px;
+    color: #1d2939;
+    margin-top: 16px;
+  }
+  .callout strong { color: var(--single); }
+
+  @media (max-width: 720px) {
+    .schema { grid-template-columns: 1fr; }
+    .rel { line-height: 1.4; padding: 4px 0; }
+    .data-grid { grid-template-columns: 1fr; }
+    .q-body { padding-left: 22px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="page">
+    <h1>Inner Joins in PostgreSQL</h1>
+    <p>Six practice questions on the <code>makers</code>, <code>screens</code> and <code>smartphones</code> tables.</p>
+  </header>
+
+  <!-- ================= schema ================= -->
+  <section class="card">
+    <div class="card-pad">
+      <h2>The three tables</h2>
+      <div class="schema">
+        <div class="tbl">
+          <div class="tbl-name">makers</div>
+          <ul>
+            <li><span class="pk">maker_id</span> &nbsp;PK</li>
+            <li>maker_name</li>
+          </ul>
+        </div>
+        <div class="rel">
+          <div><span class="arrow">&#8592;&#8212;</span> maker_id</div>
+          <div><span class="arrow">&#8592;&#8212;</span> screen_size_id</div>
+        </div>
+        <div class="tbl">
+          <div class="tbl-name">screens</div>
+          <ul>
+            <li><span class="pk">screen_size_id</span> &nbsp;PK</li>
+            <li>size_inches</li>
+            <li>size_cms <em>(generated)</em></li>
+          </ul>
+        </div>
+      </div>
+      <div style="margin-top:14px">
+        <div class="tbl">
+          <div class="tbl-name">smartphones</div>
+          <ul style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0 14px">
+            <li><span class="pk">phone_id</span> &nbsp;PK</li>
+            <li>model_name</li>
+            <li><span class="fk">maker_id</span> &nbsp;FK &#8594; makers</li>
+            <li><span class="fk">screen_size_id</span> &nbsp;FK &#8594; screens</li>
+            <li>release_year</li>
+            <li>os</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="callout">
+        <strong>Why this matters.</strong> An <code>INNER JOIN</code> keeps only rows where
+        <em>both</em> sides match. A phone whose <code>screen_size_id</code> has no matching row in
+        <code>screens</code> would be dropped from the result entirely — silently, with no error.
+        Every question below depends on those foreign keys pointing at real rows.
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= data browser ================= -->
+  <details class="card data">
+    <summary>Browse the actual data</summary>
+    <div class="body">
+      <div class="data-grid">
+        <div>
+          <h4>makers</h4>
+          <div class="result-box" id="ref-makers"></div>
+        </div>
+        <div>
+          <h4>screens</h4>
+          <div class="result-box" id="ref-screens"></div>
+        </div>
+        <div class="full">
+          <h4>smartphones</h4>
+          <div class="result-box" id="ref-phones"></div>
+        </div>
+      </div>
+    </div>
+  </details>
+
+  <!-- ================= toolbar ================= -->
+  <div class="toolbar">
+    <button class="btn btn-primary" id="reveal-all">Reveal all answers</button>
+    <button class="btn" id="hide-all">Hide all answers</button>
+    <span class="progress" id="progress">0 of 6 revealed</span>
+  </div>
+
+  <!-- ================= questions ================= -->
+  <div id="questions"></div>
+
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* =========================================================
+     Reference data — copied from the actual tables so students
+     can reason about the answers before running anything.
+     ========================================================= */
+  var REF = {
+    makers: {
+      columns: ['maker_id', 'maker_name'],
+      rows: [[1, 'Apple'], [2, 'Samsung'], [3, 'Huawei'], [4, 'Oppo']]
+    },
+    screens: {
+      columns: ['screen_size_id', 'size_inches', 'size_cms'],
+      rows: [
+        [1, '6.1', '15.5'], [2, '6.2', '15.7'], [3, '6.3', '16.0'],
+        [4, '6.4', '16.3'], [5, '6.5', '16.5'], [6, '6.7', '17.0'],
+        [7, '6.8', '17.3'], [8, '6.9', '17.5'], [9, '7.6', '19.3']
+      ]
+    },
+    phones: {
+      columns: ['phone_id', 'model_name', 'maker_id', 'screen_size_id', 'release_year', 'os'],
+      rows: [
+        [1,  'iPhone 15 Pro',     1, 1, 2023, 'iOS'],
+        [2,  'iPhone 15 Pro Max', 1, 6, 2023, 'iOS'],
+        [3,  'iPhone 16 Pro',     1, 3, 2024, 'iOS'],
+        [4,  'iPhone 16 Pro Max', 1, 8, 2024, 'iOS'],
+        [5,  'Galaxy S24',        2, 2, 2024, 'Android'],
+        [6,  'Galaxy S24 Ultra',  2, 7, 2024, 'Android'],
+        [7,  'Galaxy Z Fold 6',   2, 9, 2024, 'Android'],
+        [8,  'P60 Pro',           3, 6, 2023, 'Android'],
+        [9,  'Mate 60 Pro',       3, 7, 2023, 'Android'],
+        [10, 'Find X7 Ultra',     4, 7, 2024, 'Android']
+      ]
+    }
+  };
+
+  /* =========================================================
+     The six questions. Every result set below was produced by
+     running the model answer against the real database.
+     ========================================================= */
+  var QUESTIONS = [
+    {
+      category: 'warmup',
+      title: 'Phones released in 2024',
+      text: 'List every smartphone released in 2024. Show the model name and its operating ' +
+            'system, sorted alphabetically by model name.',
+      hint: 'No join needed — everything you need is in <code>smartphones</code>. Filter with ' +
+            '<code>WHERE</code> and sort with <code>ORDER BY</code>.',
+      sql:
+'SELECT model_name, os\n' +
+'FROM smartphones\n' +
+'WHERE release_year = 2024\n' +
+'ORDER BY model_name;',
+      result: {
+        columns: ['model_name', 'os'],
+        rows: [
+          ['Find X7 Ultra', 'Android'],
+          ['Galaxy S24', 'Android'],
+          ['Galaxy S24 Ultra', 'Android'],
+          ['Galaxy Z Fold 6', 'Android'],
+          ['iPhone 16 Pro', 'iOS'],
+          ['iPhone 16 Pro Max', 'iOS']
+        ]
+      }
+    },
+    {
+      category: 'warmup',
+      title: 'How many phones per operating system?',
+      text: 'Count how many smartphones run each operating system. Show the operating system ' +
+            'and the number of phones.',
+      hint: '<code>GROUP BY os</code> collapses the rows into one group per operating system, ' +
+            'and <code>COUNT(*)</code> counts how many rows landed in each group.',
+      sql:
+'SELECT os, COUNT(*) AS phone_count\n' +
+'FROM smartphones\n' +
+'GROUP BY os\n' +
+'ORDER BY os;',
+      result: {
+        columns: ['os', 'phone_count'],
+        rows: [['Android', '6'], ['iOS', '4']]
+      }
+    },
+    {
+      category: 'single',
+      title: 'Every phone with the company that makes it',
+      text: 'List every phone together with the name of the company that makes it. Show the ' +
+            'model name and the maker name, ordered by maker name and then by model name.',
+      hint: '<code>smartphones.maker_id</code> is a foreign key pointing at ' +
+            '<code>makers.maker_id</code>. Join on that pair. You do not need the ' +
+            '<code>screens</code> table for this one.',
+      sql:
+'SELECT s.model_name, m.maker_name\n' +
+'FROM smartphones AS s\n' +
+'JOIN makers AS m ON m.maker_id = s.maker_id\n' +
+'ORDER BY m.maker_name, s.model_name;',
+      result: {
+        columns: ['model_name', 'maker_name'],
+        rows: [
+          ['iPhone 15 Pro', 'Apple'],
+          ['iPhone 15 Pro Max', 'Apple'],
+          ['iPhone 16 Pro', 'Apple'],
+          ['iPhone 16 Pro Max', 'Apple'],
+          ['Mate 60 Pro', 'Huawei'],
+          ['P60 Pro', 'Huawei'],
+          ['Find X7 Ultra', 'Oppo'],
+          ['Galaxy S24', 'Samsung'],
+          ['Galaxy S24 Ultra', 'Samsung'],
+          ['Galaxy Z Fold 6', 'Samsung']
+        ]
+      }
+    },
+    {
+      category: 'single',
+      title: 'Big screens only',
+      text: 'Show the model name and screen size in inches for every phone with a screen of ' +
+            '6.7 inches or larger. Show the largest screen first, then alphabetically by model name.',
+      hint: 'This time join to <code>screens</code> on <code>screen_size_id</code>. The size ' +
+            'lives in <code>screens</code>, not in <code>smartphones</code> — you only have a ' +
+            'number that points at it.',
+      sql:
+'SELECT s.model_name, sc.size_inches\n' +
+'FROM smartphones AS s\n' +
+'JOIN screens AS sc ON sc.screen_size_id = s.screen_size_id\n' +
+'WHERE sc.size_inches >= 6.7\n' +
+'ORDER BY sc.size_inches DESC, s.model_name;',
+      result: {
+        columns: ['model_name', 'size_inches'],
+        rows: [
+          ['Galaxy Z Fold 6', '7.6'],
+          ['iPhone 16 Pro Max', '6.9'],
+          ['Find X7 Ultra', '6.8'],
+          ['Galaxy S24 Ultra', '6.8'],
+          ['Mate 60 Pro', '6.8'],
+          ['iPhone 15 Pro Max', '6.7'],
+          ['P60 Pro', '6.7']
+        ]
+      },
+      note: 'Three phones tie at 6.8 inches. Without the second sort column ' +
+            '(<code>s.model_name</code>), their order would be whatever the database felt like ' +
+            'returning — so always add a tie-breaker when you need a stable result.'
+    },
+    {
+      category: 'multi',
+      title: 'iPhones, in inches and centimetres',
+      text: 'Show the maker and the screen size of every model with <em>iPhone</em> in its name. ' +
+            'Display the screen size in both inches and centimetres, smallest screen first.',
+      hint: 'You now need <strong>both</strong> lookup tables: join <code>smartphones</code> to ' +
+            '<code>makers</code> <em>and</em> to <code>screens</code> — two joins, two foreign keys. ' +
+            '<code>size_cms</code> is a generated column, so you can select it directly.',
+      sql:
+'SELECT s.model_name, m.maker_name, sc.size_inches, sc.size_cms\n' +
+'FROM smartphones AS s\n' +
+'JOIN makers  AS m  ON m.maker_id = s.maker_id\n' +
+'JOIN screens AS sc ON sc.screen_size_id = s.screen_size_id\n' +
+"WHERE s.model_name LIKE '%iPhone%'\n" +
+'ORDER BY sc.size_inches;',
+      result: {
+        columns: ['model_name', 'maker_name', 'size_inches', 'size_cms'],
+        rows: [
+          ['iPhone 15 Pro', 'Apple', '6.1', '15.5'],
+          ['iPhone 16 Pro', 'Apple', '6.3', '16.0'],
+          ['iPhone 15 Pro Max', 'Apple', '6.7', '17.0'],
+          ['iPhone 16 Pro Max', 'Apple', '6.9', '17.5']
+        ]
+      },
+      note: '<code>LIKE</code> is <strong>case-sensitive</strong> in PostgreSQL, so ' +
+            "<code>'%iPhone%'</code> matches but <code>'%IPhone%'</code> returns nothing. " +
+            'Use <code>ILIKE</code> when you want to ignore case.'
+    },
+    {
+      category: 'multi',
+      title: 'Average screen size per maker',
+      text: 'For each maker, show the maker name and the average screen size of their phones in ' +
+            'inches, rounded to 2 decimal places. Show the largest average first.',
+      hint: 'Join to both lookup tables, <code>GROUP BY</code> the maker, and wrap ' +
+            '<code>AVG(sc.size_inches)</code> in <code>ROUND(&#8230;, 2)</code>.',
+      sql:
+'SELECT m.maker_name, ROUND(AVG(sc.size_inches), 2) AS avg_screen_inches\n' +
+'FROM smartphones AS s\n' +
+'JOIN makers  AS m  ON m.maker_id = s.maker_id\n' +
+'JOIN screens AS sc ON sc.screen_size_id = s.screen_size_id\n' +
+'GROUP BY m.maker_name\n' +
+'ORDER BY avg_screen_inches DESC;',
+      result: {
+        columns: ['maker_name', 'avg_screen_inches'],
+        rows: [
+          ['Samsung', '6.87'],
+          ['Oppo', '6.80'],
+          ['Huawei', '6.75'],
+          ['Apple', '6.50']
+        ]
+      },
+      note: 'Notice Samsung wins on average even though Apple makes the biggest single phone ' +
+            'in the set — Samsung\u2019s 7.6-inch foldable drags its mean up. ' +
+            'PostgreSQL lets you <code>ORDER BY</code> a column alias; some databases do not.'
+    }
+  ];
+
+  var CATEGORY_LABEL = {
+    warmup: 'Warm-up \u00b7 no join',
+    single: 'Single join',
+    multi: 'Multi join'
+  };
+
+  /* =========================================================
+     DOM helpers
+     ========================================================= */
+  function el(tag, className, text) {
+    var node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined && text !== null) node.textContent = String(text);
+    return node;
+  }
+
+  // Renders a small result table. Values are set as text, never HTML.
+  function buildTable(spec) {
+    var box = el('div', 'result-box');
+    var table = el('table');
+    var thead = el('thead');
+    var hrow = el('tr');
+    spec.columns.forEach(function (c) {
+      var th = el('th', null, c);
+      th.scope = 'col';
+      hrow.appendChild(th);
+    });
+    thead.appendChild(hrow);
+    table.appendChild(thead);
+
+    var tbody = el('tbody');
+    spec.rows.forEach(function (row) {
+      var tr = el('tr');
+      row.forEach(function (cell) {
+        var td = el('td', null, cell);
+        if (/^-?\d+(\.\d+)?$/.test(String(cell))) td.classList.add('num');
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    box.appendChild(table);
+    return box;
+  }
+
+  /* =========================================================
+     Very small SQL syntax highlighter.
+     Builds <span> nodes — no innerHTML, so nothing can inject.
+     ========================================================= */
+  var SQL_KEYWORDS = ['SELECT','FROM','WHERE','JOIN','INNER','LEFT','RIGHT','ON','AS','AND','OR',
+                      'ORDER','BY','GROUP','DESC','ASC','LIKE','ILIKE','DISTINCT','HAVING','LIMIT'];
+  var SQL_FUNCTIONS = ['COUNT','AVG','SUM','MIN','MAX','ROUND'];
+
+  function highlightSQL(sql) {
+    var code = el('code');
+    var re = /([A-Za-z_][A-Za-z0-9_]*)|(\d+(?:\.\d+)?)|('(?:[^']|'')*')|(\s+)|([^\s])/g;
+    var m;
+    while ((m = re.exec(sql)) !== null) {
+      var cls = null;
+      if (m[1]) {
+        var up = m[1].toUpperCase();
+        if (SQL_KEYWORDS.indexOf(up) !== -1) cls = 'sql-kw';
+        else if (SQL_FUNCTIONS.indexOf(up) !== -1) cls = 'sql-fn';
+      } else if (m[2]) {
+        cls = 'sql-num';
+      } else if (m[3]) {
+        cls = 'sql-str';
+      } else if (m[5]) {
+        cls = 'sql-punct';
+      }
+      code.appendChild(cls ? el('span', cls, m[0]) : document.createTextNode(m[0]));
+    }
+    return code;
+  }
+
+  /* =========================================================
+     Clipboard
+     ========================================================= */
+  function copyText(text, button) {
+    function done() {
+      var original = button.textContent;
+      button.textContent = 'Copied';
+      setTimeout(function () { button.textContent = original; }, 1400);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, function () { fallback(); });
+    } else {
+      fallback();
+    }
+    function fallback() {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); done(); } catch (e) { /* ignore */ }
+      document.body.removeChild(ta);
+    }
+  }
+
+  /* =========================================================
+     Build a question card
+     ========================================================= */
+  function buildQuestion(q, index) {
+    var card = el('section', 'card q');
+    card.setAttribute('data-revealed', 'false');
+
+    var head = el('div', 'q-head');
+    head.appendChild(el('div', 'q-num', index + 1));
+    var headText = el('div');
+    headText.appendChild(el('h3', null, q.title));
+    headText.appendChild(el('span', 'badge badge-' + q.category, CATEGORY_LABEL[q.category]));
+    head.appendChild(headText);
+    card.appendChild(head);
+
+    var body = el('div', 'q-body');
+    // Question text may contain <em>; it is authored content, not user data.
+    var textP = el('p', 'q-text');
+    textP.innerHTML = q.text;
+    body.appendChild(textP);
+
+    var actions = el('div', 'q-actions');
+    var hintBtn = el('button', 'btn', 'Show hint');
+    hintBtn.type = 'button';
+    var answerBtn = el('button', 'btn', 'Show answer');
+    answerBtn.type = 'button';
+    actions.appendChild(hintBtn);
+    actions.appendChild(answerBtn);
+    body.appendChild(actions);
+
+    var hintBox = el('div', 'hint');
+    hintBox.hidden = true;
+    hintBox.innerHTML = '<strong>Hint.</strong> ' + q.hint;
+    body.appendChild(hintBox);
+
+    var answerBox = el('div', 'answer');
+    answerBox.hidden = true;
+
+    var sqlBlock = el('div', 'sql-block');
+    var pre = el('pre');
+    pre.appendChild(highlightSQL(q.sql));
+    sqlBlock.appendChild(pre);
+    var copyBtn = el('button', 'copy-btn', 'Copy SQL');
+    copyBtn.type = 'button';
+    copyBtn.addEventListener('click', function () { copyText(q.sql, copyBtn); });
+    sqlBlock.appendChild(copyBtn);
+    answerBox.appendChild(sqlBlock);
+
+    var rowWord = q.result.rows.length === 1 ? 'row' : 'rows';
+    answerBox.appendChild(el('div', 'result-label',
+      'Expected result \u2014 ' + q.result.rows.length + ' ' + rowWord));
+    answerBox.appendChild(buildTable(q.result));
+
+    if (q.note) {
+      var note = el('div', 'note');
+      note.innerHTML = q.note;
+      answerBox.appendChild(note);
+    }
+
+    body.appendChild(answerBox);
+    card.appendChild(body);
+
+    // --- behaviour ---
+    hintBtn.addEventListener('click', function () {
+      var showing = hintBox.hidden;
+      hintBox.hidden = !showing;
+      hintBtn.textContent = showing ? 'Hide hint' : 'Show hint';
+    });
+
+    function setAnswer(show) {
+      answerBox.hidden = !show;
+      answerBtn.textContent = show ? 'Hide answer' : 'Show answer';
+      card.setAttribute('data-revealed', show ? 'true' : 'false');
+    }
+
+    answerBtn.addEventListener('click', function () {
+      setAnswer(answerBox.hidden);
+      updateProgress();
+    });
+
+    card.__setAnswer = setAnswer;
+    return card;
+  }
+
+  /* =========================================================
+     Render everything
+     ========================================================= */
+  var cards = [];
+
+  function updateProgress() {
+    var revealed = cards.filter(function (c) {
+      return c.getAttribute('data-revealed') === 'true';
+    }).length;
+    document.getElementById('progress').textContent =
+      revealed + ' of ' + cards.length + ' revealed';
+  }
+
+  function init() {
+    document.getElementById('ref-makers').appendChild(buildTable(REF.makers));
+    document.getElementById('ref-screens').appendChild(buildTable(REF.screens));
+    document.getElementById('ref-phones').appendChild(buildTable(REF.phones));
+
+    var host = document.getElementById('questions');
+    QUESTIONS.forEach(function (q, i) {
+      var card = buildQuestion(q, i);
+      cards.push(card);
+      host.appendChild(card);
+    });
+    updateProgress();
+
+    document.getElementById('reveal-all').addEventListener('click', function () {
+      cards.forEach(function (c) { c.__setAnswer(true); });
+      updateProgress();
+    });
+    document.getElementById('hide-all').addEventListener('click', function () {
+      cards.forEach(function (c) { c.__setAnswer(false); });
+      updateProgress();
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Inner Joins Practice &middot; Cars &middot; PostgreSQL</title>
+  <style>
+    :root {
+      --bg: #f5f6f8;
+      --surface: #ffffff;
+      --border: #e4e7ec;
+      --border-strong: #d0d5dd;
+      --text: #101828;
+      --text-muted: #667085;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --warmup: #b54708;
+      --warmup-bg: #fffaeb;
+      --warmup-border: #fedf89;
+      --single: #3538cd;
+      --single-bg: #eef4ff;
+      --single-border: #c7d7fe;
+      --multi: #027a48;
+      --multi-bg: #ecfdf3;
+      --multi-border: #a6f4c5;
+      --radius: 12px;
+      --shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 1px 3px rgba(16, 24, 40, .1);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+        "Helvetica Neue", Arial, sans-serif;
+      font-size: 15px;
+      line-height: 1.55;
+    }
+
+    .wrap {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 34px 20px 80px;
+    }
+
+    header.page h1 {
+      margin: 0 0 6px;
+      font-size: 27px;
+      font-weight: 650;
+      letter-spacing: -.02em;
+    }
+
+    header.page p {
+      margin: 0;
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: .92em;
+      background: #eef1f5;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 1px 5px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      margin-top: 22px;
+      overflow: hidden;
+    }
+
+    .card-pad {
+      padding: 20px 22px;
+    }
+
+    .card h2 {
+      margin: 0 0 12px;
+      font-size: 15px;
+      font-weight: 620;
+    }
+
+    /* ---------- schema diagram ---------- */
+    .schema {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 14px;
+      align-items: center;
+      margin-top: 6px;
+    }
+
+    .tbl {
+      border: 1px solid var(--border-strong);
+      border-radius: 9px;
+      overflow: hidden;
+      font-size: 13px;
+    }
+
+    .tbl-name {
+      background: #f9fafb;
+      border-bottom: 1px solid var(--border);
+      padding: 6px 10px;
+      font-weight: 620;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12.5px;
+    }
+
+    .tbl ul {
+      margin: 0;
+      padding: 7px 10px;
+      list-style: none;
+    }
+
+    .tbl li {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12.5px;
+      color: #475467;
+    }
+
+    .pk {
+      color: #b54708;
+      font-weight: 600;
+    }
+
+    .fk {
+      color: #3538cd;
+      font-weight: 600;
+    }
+
+    .rel {
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-muted);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      line-height: 1.9;
+    }
+
+    .rel .arrow {
+      color: var(--single);
+      font-weight: 700;
+    }
+
+    /* ---------- data browser ---------- */
+    details.data>summary {
+      cursor: pointer;
+      padding: 14px 22px;
+      font-weight: 600;
+      font-size: 14px;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    details.data>summary::-webkit-details-marker {
+      display: none;
+    }
+
+    details.data>summary::before {
+      content: "▸";
+      color: var(--text-muted);
+      transition: transform .15s;
+      display: inline-block;
+    }
+
+    details.data[open]>summary::before {
+      transform: rotate(90deg);
+    }
+
+    details.data .body {
+      padding: 0 22px 20px;
+    }
+
+    .data-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+
+    .data-grid .full {
+      grid-column: 1 / -1;
+    }
+
+    .data-grid h4 {
+      margin: 0 0 6px;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      color: var(--text-muted);
+    }
+
+    /* ---------- result tables ---------- */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    th,
+    td {
+      text-align: left;
+      padding: 5px 10px;
+      border-bottom: 1px solid #f1f3f6;
+      white-space: nowrap;
+    }
+
+    thead th {
+      background: #fafbfc;
+      border-bottom: 1px solid var(--border);
+      font-size: 11.5px;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    tbody tr:last-child td {
+      border-bottom: 0;
+    }
+
+    td.num {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ---------- toolbar ---------- */
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+      margin-top: 22px;
+    }
+
+    .progress {
+      margin-left: auto;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    button {
+      font: inherit;
+      cursor: pointer;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      transition: background-color .15s, border-color .15s, color .15s;
+    }
+
+    .btn {
+      background: var(--surface);
+      color: var(--text);
+      border-color: var(--border-strong);
+      padding: 7px 14px;
+      font-size: 13.5px;
+      font-weight: 520;
+    }
+
+    .btn:hover {
+      background: #f9fafb;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-hover);
+      border-color: var(--accent-hover);
+    }
+
+    /* ---------- questions ---------- */
+    .q {
+      margin-top: 18px;
+    }
+
+    .q-head {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      padding: 18px 22px 0;
+    }
+
+    .q-num {
+      flex: none;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: #eef2f6;
+      color: #344054;
+      font-weight: 650;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .q-head h3 {
+      margin: 3px 0 6px;
+      font-size: 16px;
+      font-weight: 620;
+    }
+
+    .q-body {
+      padding: 0 22px 20px 66px;
+    }
+
+    .q-text {
+      margin: 0 0 14px;
+    }
+
+    .badge {
+      display: inline-block;
+      font-size: 11.5px;
+      font-weight: 620;
+      padding: 2px 9px;
+      border-radius: 999px;
+      border: 1px solid;
+      letter-spacing: .02em;
+    }
+
+    .badge-warmup {
+      color: var(--warmup);
+      background: var(--warmup-bg);
+      border-color: var(--warmup-border);
+    }
+
+    .badge-single {
+      color: var(--single);
+      background: var(--single-bg);
+      border-color: var(--single-border);
+    }
+
+    .badge-multi {
+      color: var(--multi);
+      background: var(--multi-bg);
+      border-color: var(--multi-border);
+    }
+
+    .q-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 9px;
+    }
+
+    .hint {
+      margin-top: 13px;
+      background: #fffaeb;
+      border: 1px solid var(--warmup-border);
+      border-radius: 9px;
+      padding: 10px 13px;
+      font-size: 13.5px;
+      color: #7a2e0e;
+    }
+
+    .hint[hidden] {
+      display: none;
+    }
+
+    .hint strong {
+      color: #b54708;
+    }
+
+    .answer {
+      margin-top: 14px;
+    }
+
+    .answer[hidden] {
+      display: none;
+    }
+
+    .sql-block {
+      position: relative;
+    }
+
+    pre {
+      margin: 0;
+      background: #0f172a;
+      color: #e2e8f0;
+      border-radius: 9px;
+      padding: 14px 16px;
+      overflow-x: auto;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    pre code {
+      background: none;
+      border: 0;
+      padding: 0;
+      color: inherit;
+      font-size: inherit;
+    }
+
+    .sql-kw {
+      color: #93c5fd;
+      font-weight: 600;
+    }
+
+    .sql-fn {
+      color: #c4b5fd;
+    }
+
+    .sql-num {
+      color: #fdba74;
+    }
+
+    .sql-str {
+      color: #86efac;
+    }
+
+    .sql-punct {
+      color: #94a3b8;
+    }
+
+    .copy-btn {
+      position: absolute;
+      top: 9px;
+      right: 9px;
+      background: rgba(255, 255, 255, .1);
+      border: 1px solid rgba(255, 255, 255, .2);
+      color: #cbd5e1;
+      font-size: 11.5px;
+      padding: 3px 9px;
+      border-radius: 6px;
+    }
+
+    .copy-btn:hover {
+      background: rgba(255, 255, 255, .2);
+      color: #fff;
+    }
+
+    .result-label {
+      margin: 14px 0 6px;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .result-box {
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      overflow-x: auto;
+    }
+
+    .note {
+      margin-top: 10px;
+      font-size: 13px;
+      color: #475467;
+      border-left: 3px solid var(--border-strong);
+      padding-left: 11px;
+    }
+
+    .note code {
+      background: #f2f4f7;
+    }
+
+    .callout {
+      background: var(--single-bg);
+      border: 1px solid var(--single-border);
+      border-radius: 9px;
+      padding: 13px 16px;
+      font-size: 13.5px;
+      color: #1d2939;
+      margin-top: 16px;
+    }
+
+    .callout strong {
+      color: var(--single);
+    }
+
+    @media (max-width: 720px) {
+      .schema {
+        grid-template-columns: 1fr;
+      }
+
+      .rel {
+        line-height: 1.4;
+        padding: 4px 0;
+      }
+
+      .data-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .q-body {
+        padding-left: 22px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+
+    <header class="page">
+      <h1>Inner Joins in PostgreSQL</h1>
+      <p>Three practice questions on the <code>cars</code>, <code>car_companies</code> and <code>car_origins</code>
+        tables.</p>
+    </header>
+
+    <div class="callout">
+      <strong>Look at your 3 tables in SupaBase: </strong> <code>cars</code> stores only two numbers where the maker
+      and the country should be. Those numbers are foreign keys — pointers at rows in the other
+      two tables. An <code>INNER JOIN</code> is how you turn them back into names, and it keeps
+      only rows where <em>both</em> sides match: a car whose <code>company_id</code> pointed at a
+      missing company would vanish from the result entirely, with no error.
+    </div>
+
+
+    <!-- ================= toolbar ================= -->
+
+
+    <!-- ================= questions ================= -->
+    <div id="questions"></div>
+
+  </div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      /* =========================================================
+         Reference data — straight from the tables, so students can
+         work out the answers before running anything.
+         ========================================================= */
+      var REF = {
+        companies: {
+          columns: ['id', 'name'],
+          rows: [
+            [1, 'Mercedes-Benz'], [2, 'Kia'], [3, 'Ford'], [4, 'Toyota'],
+            [5, 'BMW'], [6, 'Hyundai'], [7, 'Volkswagen']
+          ]
+        },
+        origins: {
+          columns: ['id', 'name'],
+          rows: [[1, 'Germany'], [2, 'South Korea'], [3, 'United States'], [4, 'Japan']]
+        },
+        cars: {
+          columns: ['id', 'model', 'year', 'price', 'company_id', 'origin_id'],
+          rows: [
+            [1, 'Golf', 2021, '27000.00', 7, 1],
+            [2, '3 Series', 2022, '42000.00', 5, 1],
+            [3, 'C-Class', 2023, '45000.00', 1, 1],
+            [4, 'Tucson', 2023, '31000.00', 6, 2],
+            [5, 'Sportage', 2022, '28000.00', 2, 2],
+            [6, 'Mustang', 2021, '55000.00', 3, 3],
+            [7, 'Corolla', 2023, '24000.00', 4, 4]
+          ]
+        }
+      };
+
+      /* =========================================================
+         The three questions. Each result set below is the real
+         output of the model answer, checked against the database.
+         ========================================================= */
+      var QUESTIONS = [
+        {
+          category: 'warmup',
+          title: 'Newer cars, most expensive first',
+          text: 'List the model, year and price of every car released in 2023 or later. Show the ' +
+            'most expensive car first.',
+          hint: 'No join here — everything is already in <code>cars</code>. Filter with ' +
+            '<code>WHERE</code> and sort with <code>ORDER BY</code>.',
+          sql:
+            'SELECT model, year, price\n' +
+            'FROM cars\n' +
+            'WHERE year >= 2023\n' +
+            'ORDER BY price DESC;',
+          result: {
+            columns: ['model', 'year', 'price'],
+            rows: [
+              ['C-Class', '2023', '45000.00'],
+              ['Tucson', '2023', '31000.00'],
+              ['Corolla', '2023', '24000.00']
+            ]
+          },
+          note: '<code>price</code> is a <code>numeric</code> column, so it sorts by value. ' +
+            'If it had been stored as <code>text</code>, <code>\'24000.00\'</code> would sort ' +
+            '<em>after</em> <code>\'45000.00\'</code>, because text is compared character by ' +
+            'character. Watch for that when a price column looks wrong.'
+        },
+        {
+          category: 'single',
+          title: 'Every car with the company that makes it',
+          text: 'Show every car together with the name of the company that makes it. Show the model ' +
+            'and the company name.',
+          hint: '<code>cars.company_id</code> is a foreign key pointing at ' +
+            '<code>car_companies.id</code>. Join on that pair. You do not need ' +
+            '<code>car_origins</code> for this one.',
+          sql:
+            'SELECT c.model, cc.name AS company\n' +
+            'FROM cars AS c\n' +
+            'JOIN car_companies AS cc ON cc.id = c.company_id;',
+          result: {
+            columns: ['model', 'company'],
+            rows: [
+              ['3 Series', 'BMW'],
+              ['Mustang', 'Ford'],
+              ['Tucson', 'Hyundai'],
+              ['Sportage', 'Kia'],
+              ['C-Class', 'Mercedes-Benz'],
+              ['Corolla', 'Toyota'],
+              ['Golf', 'Volkswagen']
+            ]
+          },
+          note: 'All 7 cars come back because every <code>company_id</code> points at a real ' +
+            'company. Delete one company row and its car would silently disappear from this ' +
+            'result \u2014 that is what an inner join does.'
+        },
+        {
+          category: 'multi',
+          title: 'Model, maker and country of origin',
+          text: 'Show the model, its maker and its country of origin for every car costing more ' +
+            'than $30,000. ',
+          hint: 'Now you need <strong>both</strong> lookup tables: join <code>cars</code> to ' +
+            '<code>car_companies</code> <em>and</em> to <code>car_origins</code> \u2014 two joins, ' +
+            'two foreign keys. Filter on <code>c.price</code>, which lives in <code>cars</code>.',
+          sql:
+            'SELECT c.model, cc.name AS company, o.name AS origin\n' +
+            'FROM cars AS c\n' +
+            'JOIN car_companies AS cc ON cc.id = c.company_id\n' +
+            'JOIN car_origins   AS o  ON o.id  = c.origin_id\n' +
+            'WHERE c.price > 30000;',
+          result: {
+            columns: ['model', 'company', 'origin'],
+            rows: [
+              ['Mustang', 'Ford', 'United States'],
+              ['C-Class', 'Mercedes-Benz', 'Germany'],
+              ['3 Series', 'BMW', 'Germany'],
+              ['Tucson', 'Hyundai', 'South Korea']
+            ]
+          },
+          note: 'Notice the two foreign keys are <strong>independent</strong>. In this data every ' +
+            'maker happens to be based in the car\u2019s country of origin, but nothing in the ' +
+            'schema enforces that \u2014 you could insert a Ford built in Germany and the database ' +
+            'would happily accept it. Keeping them in separate tables is what lets the data say ' +
+            'two different things.'
+        }
+      ];
+
+      var CATEGORY_LABEL = {
+        warmup: 'Simple \u00b7 no join',
+        single: 'Single join',
+        multi: 'Multi join'
+      };
+
+      /* =========================================================
+         DOM helpers
+         ========================================================= */
+      function el(tag, className, text) {
+        var node = document.createElement(tag);
+        if (className) node.className = className;
+        if (text !== undefined && text !== null) node.textContent = String(text);
+        return node;
+      }
+
+      // Renders a small table. Values are set as text, never HTML.
+      function buildTable(spec) {
+        var box = el('div', 'result-box');
+        var table = el('table');
+        var thead = el('thead');
+        var hrow = el('tr');
+        spec.columns.forEach(function (c) {
+          var th = el('th', null, c);
+          th.scope = 'col';
+          hrow.appendChild(th);
+        });
+        thead.appendChild(hrow);
+        table.appendChild(thead);
+
+        var tbody = el('tbody');
+        spec.rows.forEach(function (row) {
+          var tr = el('tr');
+          row.forEach(function (cell) {
+            var td = el('td', null, cell);
+            if (/^-?\d+(\.\d+)?$/.test(String(cell))) td.classList.add('num');
+            tr.appendChild(td);
+          });
+          tbody.appendChild(tr);
+        });
+        table.appendChild(tbody);
+        box.appendChild(table);
+        return box;
+      }
+
+      /* =========================================================
+         Small SQL highlighter — builds spans, never innerHTML.
+         ========================================================= */
+      var SQL_KEYWORDS = ['SELECT', 'FROM', 'WHERE', 'JOIN', 'INNER', 'LEFT', 'RIGHT', 'ON', 'AS', 'AND', 'OR',
+        'ORDER', 'BY', 'GROUP', 'DESC', 'ASC', 'LIKE', 'ILIKE', 'DISTINCT', 'HAVING', 'LIMIT'];
+      var SQL_FUNCTIONS = ['COUNT', 'AVG', 'SUM', 'MIN', 'MAX', 'ROUND'];
+
+      function highlightSQL(sql) {
+        var code = el('code');
+        var re = /([A-Za-z_][A-Za-z0-9_]*)|(\d+(?:\.\d+)?)|('(?:[^']|'')*')|(\s+)|([^\s])/g;
+        var m;
+        while ((m = re.exec(sql)) !== null) {
+          var cls = null;
+          if (m[1]) {
+            var up = m[1].toUpperCase();
+            if (SQL_KEYWORDS.indexOf(up) !== -1) cls = 'sql-kw';
+            else if (SQL_FUNCTIONS.indexOf(up) !== -1) cls = 'sql-fn';
+          } else if (m[2]) {
+            cls = 'sql-num';
+          } else if (m[3]) {
+            cls = 'sql-str';
+          } else if (m[5]) {
+            cls = 'sql-punct';
+          }
+          code.appendChild(cls ? el('span', cls, m[0]) : document.createTextNode(m[0]));
+        }
+        return code;
+      }
+
+      /* =========================================================
+         Clipboard
+         ========================================================= */
+      function copyText(text, button) {
+        function done() {
+          var original = button.textContent;
+          button.textContent = 'Copied';
+          setTimeout(function () { button.textContent = original; }, 1400);
+        }
+        function fallback() {
+          var ta = document.createElement('textarea');
+          ta.value = text;
+          ta.setAttribute('readonly', '');
+          ta.style.position = 'fixed';
+          ta.style.opacity = '0';
+          document.body.appendChild(ta);
+          ta.select();
+          try { document.execCommand('copy'); done(); } catch (e) { /* ignore */ }
+          document.body.removeChild(ta);
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done, fallback);
+        } else {
+          fallback();
+        }
+      }
+
+      /* =========================================================
+         Question card
+         ========================================================= */
+      function buildQuestion(q, index) {
+        var card = el('section', 'card q');
+        card.setAttribute('data-revealed', 'false');
+
+        var head = el('div', 'q-head');
+        head.appendChild(el('div', 'q-num', index + 1));
+        var headText = el('div');
+        headText.appendChild(el('h3', null, q.title));
+        headText.appendChild(el('span', 'badge badge-' + q.category, CATEGORY_LABEL[q.category]));
+        head.appendChild(headText);
+        card.appendChild(head);
+
+        var body = el('div', 'q-body');
+        var textP = el('p', 'q-text');
+        textP.innerHTML = q.text;          // authored content, not user data
+        body.appendChild(textP);
+
+        var actions = el('div', 'q-actions');
+        var hintBtn = el('button', 'btn', 'Show hint');
+        hintBtn.type = 'button';
+        var answerBtn = el('button', 'btn', 'Show answer');
+        answerBtn.type = 'button';
+        actions.appendChild(hintBtn);
+        actions.appendChild(answerBtn);
+        body.appendChild(actions);
+
+        var hintBox = el('div', 'hint');
+        hintBox.hidden = true;
+        hintBox.innerHTML = '<strong>Hint.</strong> ' + q.hint;
+        body.appendChild(hintBox);
+
+        var answerBox = el('div', 'answer');
+        answerBox.hidden = true;
+
+        var sqlBlock = el('div', 'sql-block');
+        var pre = el('pre');
+        pre.appendChild(highlightSQL(q.sql));
+        sqlBlock.appendChild(pre);
+        var copyBtn = el('button', 'copy-btn', 'Copy SQL');
+        copyBtn.type = 'button';
+        copyBtn.addEventListener('click', function () { copyText(q.sql, copyBtn); });
+        sqlBlock.appendChild(copyBtn);
+        answerBox.appendChild(sqlBlock);
+
+        var rowWord = q.result.rows.length === 1 ? 'row' : 'rows';
+        answerBox.appendChild(el('div', 'result-label',
+          'Expected result \u2014 ' + q.result.rows.length + ' ' + rowWord));
+        answerBox.appendChild(buildTable(q.result));
+
+        if (q.note) {
+          var note = el('div', 'note');
+          note.innerHTML = q.note;
+          answerBox.appendChild(note);
+        }
+
+        body.appendChild(answerBox);
+        card.appendChild(body);
+
+        hintBtn.addEventListener('click', function () {
+          var showing = hintBox.hidden;
+          hintBox.hidden = !showing;
+          hintBtn.textContent = showing ? 'Hide hint' : 'Show hint';
+        });
+
+        function setAnswer(show) {
+          answerBox.hidden = !show;
+          answerBtn.textContent = show ? 'Hide answer' : 'Show answer';
+          card.setAttribute('data-revealed', show ? 'true' : 'false');
+        }
+        answerBtn.addEventListener('click', function () {
+          setAnswer(answerBox.hidden);
+          updateProgress();
+        });
+
+        card.__setAnswer = setAnswer;
+        return card;
+      }
+
+      /* =========================================================
+         Render
+         ========================================================= */
+      var cards = [];
+
+      function updateProgress() {
+        // var revealed = cards.filter(function (c) {
+        //   return c.getAttribute('data-revealed') === 'true';
+        // }).length;
+        // document.getElementById('progress').textContent =
+        //   revealed + ' of ' + cards.length + ' revealed';
+      }
+
+      function init() {
+        //    document.getElementById('ref-companies').appendChild(buildTable(REF.companies));
+        //  document.getElementById('ref-origins').appendChild(buildTable(REF.origins));
+        // document.getElementById('ref-cars').appendChild(buildTable(REF.cars));
+
+        var host = document.getElementById('questions');
+        QUESTIONS.forEach(function (q, i) {
+          var card = buildQuestion(q, i);
+          cards.push(card);
+          host.appendChild(card);
+        });
+
+
+
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+      } else {
+        init();
+      }
+    })();
+  </script>
+</body>
+
+</html>
